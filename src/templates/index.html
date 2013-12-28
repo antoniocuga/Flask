@@ -1,0 +1,30 @@
+<html>
+  <head>
+
+    <link href="{{ url_for('static', filename='css/docs.css') }}" type="text/css" />
+
+    <link href="{{ url_for('static', filename='css/pygments-manni.css') }}" type="text/css" />
+
+  </head>
+  <body>
+    <img src="{{ url_for('static', filename='images/mi_imagen.png') }} " />
+    <a href="{{ url_for('add') }}">add feed</a>
+    <table class="table">
+      <thead>
+        <tr>
+          <td>Feed name</td> 
+          <td>Unreader news</td> 
+          <td>Last update</td> 
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in feeds %}
+          <tr>
+            <td><a href="{{ url_for('feed', id=entry.id) }}"> {{ entry.title }}</a></td> 
+              <td>{{ entry.unread }}</td> 
+              <td>{{ entry.last_update_at }}</td> 
+              </tr>
+        {% endfor %}
+       </tbody>
+    </table>
+  </body>

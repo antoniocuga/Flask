@@ -1,0 +1,13 @@
+<form method="POST" action="">
+  <ul>
+  {% for field in form %}
+  <li>
+      {{ field.label }} {{field}}
+      {% if field.errors %}
+        Error! ({{ field.errors }})
+      {% endif %} 
+  </li>
+  {%  endfor %}
+  <li><input type="submit" value="Enviar" /></li>
+  </ul>
+</form>

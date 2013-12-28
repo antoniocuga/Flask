@@ -1,0 +1,26 @@
+<html>
+  <head></head>
+  <body>
+    <a href="{{ url_for('index') }}">back to index</a>
+    <h1>{{ feed.title }}</h1>
+    <h2>{{ feed.url }}</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <td>Feed name</td> 
+          <td>Status</td> 
+          <td>Created</td> 
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+          <tr>
+            <td><a href="{{ url_for('read', id=entry.id) }}"> {{ entry.title }}</a></td> 
+              <td>{{ entry.status }}</td> 
+              <td>{{ entry.create_at }}</td> 
+              </tr>
+        {% endfor %}
+       </tbody>
+    </table>
+  </body>

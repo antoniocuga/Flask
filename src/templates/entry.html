@@ -1,0 +1,13 @@
+<html>
+  <head></head>
+  <body>
+    <a href="{{ url_for('feed', id=entry.feed_id) }}">back to {{ feed.title }}</a>
+    <h1>{{ entry.title }}</h1>
+    <h2>{{ entry.create_at }}</h2>
+
+    <p>
+     {{ entry.body|safe }}
+    </p>
+  
+  
+  </body>
