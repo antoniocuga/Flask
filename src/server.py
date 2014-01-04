@@ -32,8 +32,27 @@ def teardown_request(exception):
         db.close()
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
+
+    form = forms.AddFeed(request.form)
+    if request.method == 'POST' and form.validate():
+        feed_data = feedparser.parse(form.feed_url.data)
+        feed = models.Feed()
+        feed.title = feed_data['feed']['title']
+        feed.url = feed_data['feed']['link']
+        feed.unread = len(feed_data['items'])
+        feed.feed_url = form.feed_url.data
+        g.db.add(feed)
+
+        try:
+            g.db.commit()
+        except:
+            g.db.rollback()
+            raise
+        else:
+            return redirect(url_for('index'))
+
     feeds = g.db.query(
         models.Feed.id,
         models.Feed.title,
@@ -46,11 +65,15 @@ def index():
     return render_template(
         'index.html',
         feeds=feeds,
+        form=form
     )
 
 
 @app.route('/feed/<int:id>')
 def feed(id):
+
+    form = forms.AddFeed()
+
     feed = g.db.query(
         models.Feed.id,
         models.Feed.title,
@@ -67,18 +90,22 @@ def feed(id):
     ).filter(
         models.Entry.feed_id == feed.id
     ).order_by(
-        models.Entry.create_at
+        models.Entry.create_at.desc()
     ).all()
 
     return render_template(
         'feed.html',
         feed=feed,
-        entries=entries
+        entries=entries,
+        form=form
     )
 
 
 @app.route('/read/<int:id>')
 def read(id):
+
+    form = forms.AddFeed()
+
     entry = g.db.query(
         models.Entry
     ).filter(
@@ -102,7 +129,12 @@ def read(id):
     except:
         g.db.rollback()
     else:
-        return render_template('entry.html', entry=entry, feed=feed)
+        return render_template(
+            'entry.html',
+            entry=entry,
+            feed=feed,
+            form=form
+        )
 
 
 @app.route('/add', methods=['GET', 'POST'])
