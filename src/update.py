@@ -7,6 +7,7 @@ from time import mktime
 
 import settings
 import models
+import import_sunat
 
 
 db_engine = create_engine(

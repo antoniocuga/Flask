@@ -1,11 +1,11 @@
-from flask import Flask, g, render_template, url_for, request, redirect
+from flask import Flask, g, render_template
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import feedparser
 
 import settings
 import models
-import forms
+#import import_sunat
+import import_representante
 
 app = Flask(
     __name__,
@@ -35,131 +35,118 @@ def teardown_request(exception):
 @app.route('/', methods=['GET', 'POST'])
 def index():
 
-    form = forms.AddFeed(request.form)
-    if request.method == 'POST' and form.validate():
-        feed_data = feedparser.parse(form.feed_url.data)
-        feed = models.Feed()
-        feed.title = feed_data['feed']['title']
-        feed.url = feed_data['feed']['link']
-        feed.unread = len(feed_data['items'])
-        feed.feed_url = form.feed_url.data
-        g.db.add(feed)
-
-        try:
-            g.db.commit()
-        except:
-            g.db.rollback()
-            raise
-        else:
-            return redirect(url_for('index'))
-
-    feeds = g.db.query(
-        models.Feed.id,
-        models.Feed.title,
-        models.Feed.unread,
-        models.Feed.last_update_at
+    proveedores = g.db.query(
+        models.Empresa.id,
+        models.Empresa.ruc,
+        models.Empresa.razon_social,
+        models.Empresa.total_ganado
     ).order_by(
-        models.Feed.title
-    ).all()
+        models.Empresa.total_ganado.desc()
+    ).limit(200)
 
     return render_template(
         'index.html',
-        feeds=feeds,
-        form=form
+        proveedores=proveedores,
     )
 
 
-@app.route('/feed/<int:id>')
-def feed(id):
+@app.route('/empresas', methods=['GET', 'POST'])
+def empresas():
 
-    form = forms.AddFeed()
-
-    feed = g.db.query(
-        models.Feed.id,
-        models.Feed.title,
-        models.Feed.url
-    ).filter(
-        models.Feed.id == id
-    ).first()
-
-    entries = g.db.query(
-        models.Entry.id,
-        models.Entry.title,
-        models.Entry.status,
-        models.Entry.create_at
-    ).filter(
-        models.Entry.feed_id == feed.id
+    proveedores = g.db.query(
+        models.Empresa.id,
+        models.Empresa.ruc,
+        models.Empresa.razon_social,
+        models.Empresa.total_ganado
     ).order_by(
-        models.Entry.create_at.desc()
-    ).all()
+        models.Empresa.total_ganado.desc()
+    ).limit(25)
 
     return render_template(
-        'feed.html',
-        feed=feed,
-        entries=entries,
-        form=form
+        'empresas.html',
+        proveedores=proveedores,
     )
 
 
-@app.route('/read/<int:id>')
-def read(id):
+@app.route('/proveedor/<int:id>')
+def proveedor(id):
 
-    form = forms.AddFeed()
-
-    entry = g.db.query(
-        models.Entry
+    proveedor = g.db.query(
+        models.Empresa
     ).filter(
-        models.Entry.id == id
+        models.Empresa.id == id
     ).first()
 
-    feed = g.db.query(
-        models.Feed
+    emp_per = g.db.query(
+        models.Empresa_persona
     ).filter(
-        models.Feed.id == entry.feed_id
-    ).first()
+        models.Empresa_persona.empresa_id == id
+    )
 
-    entry.status = 'read'
-    g.db.add(entry)
-
-    feed.unread -= 1
-    g.db.add(feed)
-
-    try:
-        g.db.commit()
-    except:
-        g.db.rollback()
+    if emp_per.count() == 0:
+        representanteClass = import_representante.importRepresentante()
+        proveedor.representantes = representanteClass.save(proveedor.ruc, id)
     else:
-        return render_template(
-            'entry.html',
-            entry=entry,
-            feed=feed,
-            form=form
+        representantes = g.db.query(
+            models.Empresa_persona
+        ).filter(
+            models.Empresa_persona.empresa_id == id
+        ).order_by(
+            models.Empresa_persona.fecha_cargo.desc()
+        ).join(
+            models.Persona
+        ).values(
+            models.Persona.id,
+            models.Persona.dni,
+            models.Persona.nombre,
+            models.Empresa_persona.cargo,
+            models.Empresa_persona.fecha_cargo
         )
 
+        proveedor.representantes = representantes
 
-@app.route('/add', methods=['GET', 'POST'])
-def add():
-    form = forms.AddFeed(request.form)
-    if request.method == 'POST' and form.validate():
-        feed_data = feedparser.parse(form.feed_url.data)
-        feed = models.Feed()
-        feed.title = feed_data['feed']['title']
-        feed.url = feed_data['feed']['link']
-        feed.unread = len(feed_data['items'])
-        feed.feed_url = form.feed_url.data
-        g.db.add(feed)
+    return render_template(
+        'proveedor.html',
+        proveedor=proveedor,
+    )
 
-        try:
-            g.db.commit()
-        except:
-            g.db.rollback()
-            raise
-        else:
-            return redirect(url_for('index'))
-    return render_template('add_feed.html', form=form)
 
+@app.route('/representante/<int:id>')
+def representante(id):
+
+    representante = g.db.query(
+        models.Persona
+    ).filter(
+        models.Persona.id == id
+    ).first()
+
+    empresas = g.db.query(
+        models.Empresa_persona
+    ).order_by(
+            models.Empresa_persona.fecha_cargo.desc()
+    ).filter(
+        models.Empresa_persona.persona_id == id
+    ).join(
+        models.Persona,
+        models.Empresa
+    ).values(
+        models.Empresa.id,
+        models.Empresa.razon_social,
+        models.Empresa.ruc,
+        models.Empresa.total_ganado,
+        models.Empresa_persona.cargo,
+        models.Empresa_persona.fecha_cargo
+    )
+
+    representante.empresas = empresas
+
+    return render_template(
+        'representante.html',
+        representante=representante,
+    )
 
 if __name__ == '__main__':
     app.run(
         debug=settings.DEBUG,
     )
+
